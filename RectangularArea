@@ -1,0 +1,32 @@
+import math, sys
+def solution(K, L, M, N, P, Q, R, S):
+    # write your code in Python 2.7
+    # area of KLMN is abs(N-L)*abs(K-M)
+    areaK = math.fabs((N-L)*(K-M))
+    if areaK > sys.maxint:
+        return -1
+    # area of PQRS is abs(P-R)*abs(S-Q)
+    areaP = math.fabs((P-R)*(S-Q))
+    if areaP > sys.maxint:
+        return -1
+    individualTotalArea = areaK + areaP
+    
+    # check when two recs do not overlap
+    if M < P or R < K:
+      return individualTotalArea
+    if L > S or Q > N:
+      return individualTotalArea
+  
+    overlap = 0
+    # x-axis we have K, M, P, R, we need to sort them
+    # so that overlap size in x-axis is diff of two mi-point
+    xaxis = [K,M,P,R]
+    xaxis.sort()
+    xdiff = math.fabs(xaxis[2] - xaxis[1])
+    yaxis = [N,L,S,Q]
+    yaxis.sort()
+    ydiff = math.fabs(yaxis[2] - yaxis[1])
+    overlap = xdiff * ydiff
+    
+    totalArea = individualTotalArea - overlap
+    return int(totalArea)
