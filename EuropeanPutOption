@@ -1,0 +1,84 @@
+clear all;
+N = 20; %Number of periods in tree
+S0 = 100; %stock price today
+sigma = 0.4; %implied vol from options prices
+r = 0.05; %Risk-free rate
+T = 1/10; %maturity
+K = 97; %Strike
+t_vec = linspace(0,T,N+1)'; %N+1 total points, including t=0
+dt = t_vec(2)-t_vec(1); %time step
+f = exp(-r * dt); %1-period Discount factor
+u = exp(  sigma*sqrt( dt ) );  % up factor
+d = 1 /u; %down factor
+q = (exp(r * dt) - d) / (u - d); %Risk-neutral probability
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                     ---- [ Tree Construction ] ----                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% S_grid: Build Binomial stock price grid
+S_grid = zeros(N+1,N+1);
+for j = N+1:-1:1
+    S_vec = zeros(j,1);
+    S_vec = cumprod([S0*u^(j-1); (d/u)*ones(j-1,1)]);   
+    % Store S at time i, in S_grid tree
+    S_grid(1:j,j) = S_vec;
+end
+%% OPTION TREE
+% Option value at Maturity
+% Put Payoff
+H_maturity = max( K - S_grid(:,end), 0 );
+
+% H_grid: Option value grid
+H_grid = zeros(N+1, N+1); 
+H_grid(:,end) = H_maturity;
+
+%Start loop at node end -1, as we're rolling back
+for j = N:-1:1
+    % Up/Down Prices in next period j+1
+    P_up = H_grid(1:j,j+1);
+    P_down = H_grid(2:j+1,j+1); 
+    % Continuation values in current period j  
+    % European Put
+    H_grid(1:j,j) = exp(-r*dt) .* ( q*P_up+ (1-q).*P_down );  
+end
+
+eur_put = H_grid(1,1);
+delta_u = (H_grid(1,3) - H_grid(2,3)) / (S_grid(1,3) - S_grid(2,3));
+delta_d = (H_grid(2,3) - H_grid(3,3)) / (S_grid(2,3) - S_grid(3,3));
+
+delta_bm = (H_grid(1,2) - H_grid(2,2)) / (S_grid(1,2) - S_grid(2,2));
+gamma_bm = (delta_u - delta_d) / (0.5*(S_grid(1,3) - S_grid(3,3)));
+theta_bm = (H_grid(2,3) - H_grid(1,1)) / (2*dt);
+
+[delta, gamma, vega, theta] = greeks('put',sigma,r,K,S0,T);
+
+%% Display Results for Q2 a, b, c
+fprintf('\n')
+fprintf('>>>>>>>>>>>>>>>>>>>> Results: \n')
+fprintf('\n')
+
+fprintf('Binomial model option price:\n')
+disp(num2str(H_grid(1,1),6))
+
+fprintf('The black-scholes closed-form price is:\n')
+disp(num2str(bs('put',sigma,r,K,S0,T),6))
+
+fprintf('The delta, gamma and theta of binomial model are:\n')
+disp(num2str(delta_bm))
+disp(num2str(gamma_bm))
+disp(num2str(theta_bm))
+
+fprintf('The true value of delta, gamma and theta are:\n')
+disp(num2str(delta))
+disp(num2str(gamma))
+disp(num2str(theta))
+
+%% Display Results for Q2 d
+result = zeros(17,5);
+for i=1:+1:17
+    K = 93.5 + i*0.5;
+    result(i,1) = K;
+    result(i,2) = bs('put', sigma, r, K, S0, T);
+    [result(i,3),result(i,5)] = binEurOpt('put', sigma, r, K, S0, T, N);
+    result(i,4) = greeks('put', sigma, r, K, S0, T);
+end
